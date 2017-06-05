@@ -1,14 +1,20 @@
 package com.faforever.api.data.domain;
 
+import com.faforever.api.clan.ClanRepository;
 import com.faforever.api.data.checks.IsClanLeader;
 import com.faforever.api.data.listeners.ClanEnricherListener;
 import com.faforever.api.data.validation.IsLeaderInClan;
+import com.faforever.api.error.ApiException;
+import com.faforever.api.error.Error;
+import com.faforever.api.error.ErrorCode;
 import com.yahoo.elide.annotation.ComputedAttribute;
 import com.yahoo.elide.annotation.CreatePermission;
 import com.yahoo.elide.annotation.DeletePermission;
 import com.yahoo.elide.annotation.Include;
+import com.yahoo.elide.annotation.OnCreatePreSecurity;
 import com.yahoo.elide.annotation.SharePermission;
 import com.yahoo.elide.annotation.UpdatePermission;
+import com.yahoo.elide.core.RequestScope;
 import lombok.Setter;
 import org.hibernate.validator.constraints.NotEmpty;
 
@@ -24,6 +30,7 @@ import javax.persistence.Table;
 import javax.persistence.Transient;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.util.Arrays;
 import java.util.List;
 
 @Entity
@@ -98,5 +105,32 @@ public class Clan extends AbstractEntity {
   @ComputedAttribute
   public String getWebsiteUrl() {
     return websiteUrl;
+  }
+
+  @OnCreatePreSecurity
+  public void onCreatePreSecurity(RequestScope requestScope) {
+    // TODO: how to get creator out of request Scope
+    Player creator = null;
+    // TODO: how to get clanRepository
+    ClanRepository clanRepository = null;
+    if (!creator.getClanMemberships().isEmpty()) {
+      throw new ApiException(new Error(ErrorCode.CLAN_CREATE_CREATOR_IS_IN_A_CLAN));
+    }
+    if (clanRepository.findOneByName(getName()).isPresent()) {
+      throw new ApiException(new Error(ErrorCode.CLAN_NAME_EXISTS, getName()));
+    }
+    if (clanRepository.findOneByTag(getTag()).isPresent()) {
+      throw new ApiException(new Error(ErrorCode.CLAN_TAG_EXISTS, getTag()));
+    }
+
+    setFounder(creator);
+    setLeader(creator);
+
+    ClanMembership membership = new ClanMembership();
+    membership.setClan(this);
+    membership.setPlayer(creator);
+
+    // clan membership is saved over cascading, otherwise validation will fail
+    setMemberships(Arrays.asList(membership));
   }
 }
