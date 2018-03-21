@@ -8,11 +8,9 @@ import com.faforever.api.data.domain.Player;
 import com.faforever.api.error.ApiException;
 import com.faforever.api.error.ApiExceptionWithMultipleCodes;
 import com.faforever.api.error.ErrorCode;
-import com.faforever.commons.io.Unzipper;
 import com.google.common.io.ByteStreams;
 import com.googlecode.zohhak.api.TestWith;
 import com.googlecode.zohhak.api.runners.ZohhakRunner;
-import junitx.framework.FileAssert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -24,16 +22,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.util.FileSystemUtils;
 
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.stream.Stream;
-import java.util.zip.ZipInputStream;
 
 import static com.faforever.api.error.ApiExceptionWithCode.apiExceptionWithCode;
 import static org.junit.Assert.assertEquals;
@@ -222,6 +216,42 @@ public class MapServiceTest {
   }
 
   @Test
+  public void positiveUploadTestWithProblematicCharacters() throws IOException {
+    String zipFilename = "scmp_037_no_ascii.zip";
+    when(mapRepository.findOneByDisplayName(any())).thenReturn(Optional.empty());
+    try (InputStream inputStream = loadMapResourceAsStream(zipFilename)) {
+      byte[] mapData = ByteStreams.toByteArray(inputStream);
+
+      Path tmpDir = temporaryDirectory.getRoot().toPath();
+      instance.uploadMap(mapData, zipFilename, author, true);
+
+      ArgumentCaptor<com.faforever.api.data.domain.Map> mapCaptor = ArgumentCaptor.forClass(com.faforever.api.data.domain.Map.class);
+      verify(mapRepository, Mockito.times(1)).save(mapCaptor.capture());
+      assertEquals("No_Ascii", mapCaptor.getValue().getDisplayName());
+      assertEquals("skirmish", mapCaptor.getValue().getMapType());
+      assertEquals("FFA", mapCaptor.getValue().getBattleType());
+      assertEquals(1, mapCaptor.getValue().getVersions().size());
+
+      MapVersion mapVersion = mapCaptor.getValue().getVersions().get(0);
+      assertEquals("The thick, brackish water clings to everything, staining anything it touches. If it weren't for this planet's proximity to the Quarantine Zone, no one would ever bother coming here.", mapVersion.getDescription());
+      assertEquals(1, mapVersion.getVersion());
+      assertEquals(256, mapVersion.getHeight());
+      assertEquals(256, mapVersion.getWidth());
+      assertEquals(3, mapVersion.getMaxPlayers());
+      assertEquals("maps/no_ascii.v0001.zip", mapVersion.getFilename());
+
+      assertFalse(Files.exists(tmpDir));
+
+      Path generatedFile = finalDirectory.getRoot().toPath().resolve("no_ascii.v0001.zip");
+      assertTrue(Files.exists(generatedFile));
+
+      assertTrue(Files.exists(mapProperties.getDirectoryPreviewPathLarge().resolve("no_ascii.v0001.png")));
+      assertTrue(Files.exists(mapProperties.getDirectoryPreviewPathSmall().resolve("no_ascii.v0001.png")));
+
+    }
+  }
+
+  @Test
   public void positiveUploadTest() throws IOException {
     String zipFilename = "scmp_037.zip";
     when(mapRepository.findOneByDisplayName(any())).thenReturn(Optional.empty());
@@ -251,34 +281,9 @@ public class MapServiceTest {
       Path generatedFile = finalDirectory.getRoot().toPath().resolve("sludge_test.v0001.zip");
       assertTrue(Files.exists(generatedFile));
 
-      Path generatedFiles = finalDirectory.getRoot().toPath().resolve("generated_files");
-      try (ZipInputStream inputStreamOfExpectedFile = new ZipInputStream(
-        new BufferedInputStream(new FileInputStream(generatedFile.toFile())))) {
-        Unzipper.from(inputStreamOfExpectedFile).to(generatedFiles).unzip();
-      }
+      assertTrue(Files.exists(mapProperties.getDirectoryPreviewPathLarge().resolve("sludge_test.v0001.png")));
+      assertTrue(Files.exists(mapProperties.getDirectoryPreviewPathSmall().resolve("sludge_test.v0001.png")));
 
-      Path expectedFiles = finalDirectory.getRoot().toPath().resolve("expected_files");
-      try (ZipInputStream inputStreamOfExpectedFile = new ZipInputStream(new BufferedInputStream(
-        loadMapResourceAsStream("sludge_test.v0001.zip")))) {
-        Unzipper.from(inputStreamOfExpectedFile).to(expectedFiles).unzip();
-      }
-
-      expectedFiles = expectedFiles.resolve("sludge_test.v0001");
-      try (Stream<Path> fileStream = Files.list(expectedFiles)) {
-        assertEquals(fileStream.count(), (long) 4);
-      }
-
-      try (Stream<Path> fileStream = Files.list(expectedFiles)) {
-        Path finalGeneratedFile = generatedFiles.resolve("sludge_test.v0001");
-        fileStream.forEach(expectedFile ->
-          FileAssert.assertEquals("Difference in " + expectedFile.getFileName().toString(),
-            expectedFile.toFile(),
-            finalGeneratedFile.resolve(expectedFile.getFileName().toString()).toFile())
-        );
-
-        assertTrue(Files.exists(mapProperties.getDirectoryPreviewPathLarge().resolve("sludge_test.v0001.png")));
-        assertTrue(Files.exists(mapProperties.getDirectoryPreviewPathSmall().resolve("sludge_test.v0001.png")));
-      }
     }
   }
 

@@ -71,6 +71,8 @@ public class MapService {
     Assert.notNull(author, "'author' must not be null");
     Assert.isTrue(mapData.length > 0, "'mapData' must not be empty");
 
+    mapFilename = mapFilename.replaceAll("[^\\w.\\-]", ""); //replacing all characters that are illegal in filenames
+
     MapUploadData progressData = new MapUploadData()
       .setBaseDir(contentService.createTempDir())
       .setUploadFileName(mapFilename)
@@ -236,7 +238,7 @@ public class MapService {
     if (map == null) {
       map = new Map();
     }
-    map.setDisplayName(scenarioInfo.get(ScenarioMapInfo.NAME).toString())
+    map.setDisplayName(scenarioInfo.get(ScenarioMapInfo.NAME).toString().replaceAll("[^\\w.\\-\\ ]", ""))
       .setMapType(scenarioInfo.get(ScenarioMapInfo.TYPE).tojstring())
       .setBattleType(scenarioInfo.get(ScenarioMapInfo.CONFIGURATIONS).get(ScenarioMapInfo.CONFIGURATION_STANDARD).get(ScenarioMapInfo.CONFIGURATION_STANDARD_TEAMS).get(1)
         .get(ScenarioMapInfo.CONFIGURATION_STANDARD_TEAMS_NAME).tojstring())
