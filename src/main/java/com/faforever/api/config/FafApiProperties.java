@@ -36,6 +36,7 @@ public class FafApiProperties {
   private User user = new User();
   private Database database = new Database();
   private Mautic mautic = new Mautic();
+  private Tutorial tutorial = new Tutorial();
 
   @Data
   public static class OAuth2 {
@@ -223,5 +224,10 @@ public class FafApiProperties {
     private String clientId;
     private String clientSecret;
     private String accessTokenUrl;
+  }
+
+  @Data
+  public static class Tutorial {
+    private String thumbnailUrlFormat;
   }
 }

@@ -1,0 +1,2 @@
+DELETE FROM tutorial;
+COMMIT;
