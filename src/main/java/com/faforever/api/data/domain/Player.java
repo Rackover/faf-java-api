@@ -7,6 +7,7 @@ import com.yahoo.elide.annotation.UpdatePermission;
 import lombok.Setter;
 import org.hibernate.annotations.BatchSize;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.OneToMany;
@@ -30,6 +31,7 @@ public class Player extends Login {
   private List<ClanMembership> clanMemberships;
   private List<NameRecord> names;
   private List<AvatarAssignment> avatarAssignments;
+  private List<Vote> votes;
 
   @OneToOne(mappedBy = "player", fetch = FetchType.LAZY)
   @BatchSize(size = 1000)
@@ -77,5 +79,11 @@ public class Player extends Login {
   @Override
   public String toString() {
     return "Player(" + getId() + ", " + getLogin() + ")";
+  }
+
+  @Transient
+  @OneToMany(mappedBy = "player", cascade = CascadeType.ALL, orphanRemoval = true)
+  public List<Vote> getVotes() {
+    return votes;
   }
 }
